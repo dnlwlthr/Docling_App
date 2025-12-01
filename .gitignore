@@ -1,0 +1,6 @@
+.DS_Store
+*.xcodeproj/xcuserdata/
+python-backend/venv/
+__pycache__/
+*.pyc
+.gemini/
