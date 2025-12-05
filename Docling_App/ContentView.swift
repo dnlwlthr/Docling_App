@@ -37,7 +37,7 @@ struct ContentView: View {
             Divider()
             
             // File selection button
-            Button("Choose files…") {
+            Button("Choose file") {
                 selectFiles()
             }
             .disabled(!backendManager.isHealthy)
@@ -163,7 +163,7 @@ struct FileConversionRow: View {
                 }
                 
                 if case .done = conversion.status {
-                    Button("Save Markdown…") {
+                    Button("Save as markdown") {
                         onSave()
                     }
                     .buttonStyle(.bordered)
