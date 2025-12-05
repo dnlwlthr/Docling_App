@@ -11,11 +11,19 @@ import Combine
 import UniformTypeIdentifiers
 
 /// Represents the status of a file conversion.
-enum ConversionStatus {
+enum ConversionStatus: Equatable {
     case pending
     case uploading
     case done
     case error(String)
+}
+
+/// Options for the conversion process.
+struct ConversionOptions {
+    var ocrEnabled: Bool = true
+    var ragClean: Bool = false
+    var tableMode: String = "markdown" // "markdown" or "list"
+    var debugMode: Bool = false
 }
 
 /// Represents a file being converted.
@@ -26,6 +34,10 @@ class FileConversion: ObservableObject, Identifiable {
     
     @Published var status: ConversionStatus = .pending
     @Published var markdownContent: String?
+    @Published var ragTextContent: String?
+    @Published var debugInfo: [Any]? // Placeholder for debug info
+    
+    var options: ConversionOptions = ConversionOptions()
     
     init(fileURL: URL) {
         self.fileURL = fileURL
@@ -42,7 +54,7 @@ class ConversionService {
     private init() {}
     
     /// Convert a file by uploading it to the backend.
-    /// Updates the FileConversion object's status and markdownContent.
+    /// Updates the FileConversion object's status and content.
     func convertFile(_ fileConversion: FileConversion) {
         let baseURL = backendManager.getBaseURL().appendingPathComponent("convert")
         
@@ -59,6 +71,19 @@ class ConversionService {
         
         // Build multipart body
         var body = Data()
+        
+        // Helper to append form fields
+        func appendFormField(name: String, value: String) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+        
+        // Add options
+        appendFormField(name: "ocr_enabled", value: String(fileConversion.options.ocrEnabled))
+        appendFormField(name: "rag_clean", value: String(fileConversion.options.ragClean))
+        appendFormField(name: "table_mode", value: fileConversion.options.tableMode)
+        appendFormField(name: "debug_mode", value: String(fileConversion.options.debugMode))
         
         // Add file data
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
@@ -88,44 +113,37 @@ class ConversionService {
                     
                     guard httpResponse.statusCode == 200 else {
                         var errorMsg = "Server error: HTTP \(httpResponse.statusCode)"
-                        // Try to get error details from response body
-                        if let data = data, !data.isEmpty {
-                            // Try JSON first (FastAPI error format: {"detail": "error message"})
-                            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                                if let detail = errorJson["detail"] as? String {
-                                    errorMsg = detail
-                                } else {
-                                    // Print full JSON for debugging
-                                    print("Error response JSON (no 'detail' field): \(errorJson)")
-                                    if let jsonString = String(data: data, encoding: .utf8) {
-                                        print("Raw JSON: \(jsonString)")
-                                    }
-                                }
-                            } else if let errorText = String(data: data, encoding: .utf8), !errorText.isEmpty {
-                                // Not JSON, use as plain text (limit length)
-                                let maxLength = 500
-                                if errorText.count > maxLength {
-                                    errorMsg = String(errorText.prefix(maxLength)) + "..."
-                                } else {
-                                    errorMsg = errorText
-                                }
-                            }
-                            print("Conversion failed (HTTP \(httpResponse.statusCode)): \(errorMsg)")
-                        } else {
-                            print("Conversion failed: HTTP \(httpResponse.statusCode) (no response body)")
+                        if let data = data, let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                           let detail = errorJson["detail"] as? String {
+                            errorMsg = detail
                         }
                         fileConversion.status = .error(errorMsg)
                         return
                     }
                     
-                    guard let data = data,
-                          let markdown = String(data: data, encoding: .utf8) else {
-                        fileConversion.status = .error("Failed to decode Markdown response")
+                    guard let data = data else {
+                        fileConversion.status = .error("No data received")
                         return
                     }
                     
-                    fileConversion.markdownContent = markdown
-                    fileConversion.status = .done
+                    // Parse JSON response
+                    do {
+                        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                            if let markdown = json["markdown"] as? String {
+                                fileConversion.markdownContent = markdown
+                            }
+                            if let ragText = json["rag_text"] as? String {
+                                fileConversion.ragTextContent = ragText
+                            }
+                            // Debug info parsing can be added here
+                            
+                            fileConversion.status = .done
+                        } else {
+                            fileConversion.status = .error("Invalid JSON response")
+                        }
+                    } catch {
+                        fileConversion.status = .error("Failed to parse response: \(error.localizedDescription)")
+                    }
                 }
             }
             
@@ -138,18 +156,18 @@ class ConversionService {
         }
     }
     
-    /// Save markdown content to a file using a save panel.
-    func saveMarkdown(_ markdown: String, suggestedFileName: String, completion: @escaping (Bool) -> Void) {
+    /// Save text content to a file using a save panel.
+    func saveContent(_ content: String, suggestedFileName: String, completion: @escaping (Bool) -> Void) {
         DispatchQueue.main.async {
             let savePanel = NSSavePanel()
             savePanel.allowedContentTypes = [.plainText]
             savePanel.nameFieldStringValue = suggestedFileName
-            savePanel.title = "Save Markdown File"
+            savePanel.title = "Save File"
             
             savePanel.begin { response in
                 if response == .OK, let url = savePanel.url {
                     do {
-                        try markdown.write(to: url, atomically: true, encoding: .utf8)
+                        try content.write(to: url, atomically: true, encoding: .utf8)
                         completion(true)
                     } catch {
                         print("Failed to save file: \(error)")
@@ -162,4 +180,3 @@ class ConversionService {
         }
     }
 }
-
