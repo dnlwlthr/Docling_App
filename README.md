@@ -7,14 +7,22 @@
 
 A native macOS application that brings the power of [Docling](https://github.com/DS4SD/docling) to your desktop. Convert PDF, DOCX, PPTX, and other document formats into clean, structured Markdown entirely locally on your machine.
 
+**Now optimized for RAG (Retrieval-Augmented Generation) workflows!**
+
 ## 🚀 Features
 
 -   **Local Processing**: All conversions happen on your device. No data is ever sent to the cloud, ensuring complete privacy.
 -   **Wide Format Support**: Supports PDF, DOCX, PPTX, XLSX, and more.
--   **OCR Capabilities**: Built-in OCR to handle scanned documents and images within PDFs.
--   **Native Experience**: Clean, modern SwiftUI interface designed for macOS.
--   **Drag & Drop**: Simply drag files into the window to start conversion.
--   **Markdown Preview**: Preview the generated Markdown instantly within the app.
+-   **Batch Processing**: Select and convert multiple files simultaneously.
+-   **RAG Optimization**:
+    -   **Save as RAG Text**: Export a cleaned, text-optimized version of your documents suitable for LLM context.
+    -   **Clean Mode**: Automatically removes HTML comments and collapses whitespace.
+    -   **Table Flattening**: Option to convert complex tables into flattened lists for better RAG retrieval.
+-   **Advanced Options**:
+    -   **OCR Toggle**: Enable/disable OCR for scanned documents (configurable per batch).
+    -   **Debug Mode**: Inspect layout blocks and document structure.
+-   **Native Experience**: Clean, modern SwiftUI interface with a split-view layout.
+-   **Markdown Preview**: Toggle between rendered rich text and raw Markdown source.
 
 ## 🛠 Architecture
 
@@ -55,6 +63,16 @@ This application uses a hybrid architecture to combine the best of native macOS 
 
 5.  **Build and Run**
     Select the `Docling_App` scheme and press `Cmd+R` to build and run.
+
+## 💻 Usage
+
+1.  **Configure Settings**: Use the sidebar to set your preferences (OCR, RAG Clean Mode, Table Mode) **before** adding files.
+2.  **Add Files**: Click "Add Files" to select one or more documents.
+3.  **Convert**: Files are processed automatically. You can retry failed conversions individually.
+4.  **Preview**: Click "Preview" on a completed file to see the result. Toggle between "Rendered" and "Raw Source" views.
+5.  **Export**:
+    -   **Save as Markdown**: Standard Docling output.
+    -   **Save as RAG Text**: Optimized text output for AI applications.
 
 ## 💻 Development
 
